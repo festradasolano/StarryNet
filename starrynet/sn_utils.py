@@ -307,13 +307,22 @@ class sn_Link_Init_Thread(threading.Thread):
             self.configuration_file_path + "/" + self.file_path +
             '/delay/1.txt', self.file_path + "/1.txt")
         print('Initializing links ...')
-        sn_remote_cmd(
-            self.remote_ssh, "python3 " + self.file_path +
-            "/sn_orchestrater.py" + " " + str(self.orbit_num) + " " +
-            str(self.sat_num) + " " + str(self.constellation_size) + " " +
-            str(self.fac_num) + " " + str(self.sat_bandwidth) + " " +
-            str(self.sat_loss) + " " + str(self.sat_ground_bandwidth) + " " +
-            str(self.sat_ground_loss) + " " + self.file_path + "/1.txt")
+        # sn_remote_cmd(
+        #     self.remote_ssh, "python3 " + self.file_path +
+        #     "/sn_orchestrater.py" + " " + str(self.orbit_num) + " " +
+        #     str(self.sat_num) + " " + str(self.constellation_size) + " " +
+        #     str(self.fac_num) + " " + str(self.sat_bandwidth) + " " +
+        #     str(self.sat_loss) + " " + str(self.sat_ground_bandwidth) + " " +
+        #     str(self.sat_ground_loss) + " " + self.file_path + "/1.txt")
+        print(''.join(
+            sn_remote_cmd(
+                self.remote_ssh, "python3 " + self.file_path +
+                "/sn_orchestrater.py" + " " + str(self.orbit_num) + " " +
+                str(self.sat_num) + " " + str(self.constellation_size) + " " +
+                str(self.fac_num) + " " + str(self.sat_bandwidth) + " " +
+                str(self.sat_loss) + " " + str(self.sat_ground_bandwidth) +
+                " " + str(self.sat_ground_loss) + " " + self.file_path +
+                "/1.txt")))
 
 
 # A thread designed for initializing bird routing.
@@ -645,6 +654,28 @@ def sn_update_delay(file_path, configuration_file_path, timeptr,
         "python3 " + file_path + "/sn_orchestrater.py " + file_path + '/' +
         str(timeptr) + '.txt ' + str(constellation_size) + " update")
     print("Delay updating done.\n")
+
+
+def sn_update_link(file_path, configuration_file_path, timeptr,
+                   constellation_size, remote_ssh,
+                   remote_ftp, sat_loss):  # updating links
+    remote_ftp.put(os.path.join(os.getcwd(), "starrynet/sn_orchestrater.py"),
+                   file_path + "/sn_orchestrater.py")
+    remote_ftp.put(
+        configuration_file_path + "/" + file_path + '/delay/' + str(timeptr) +
+        '.txt', file_path + '/' + str(timeptr) + '.txt')
+    # sn_remote_cmd(
+    #     remote_ssh,
+    #     "python3 " + file_path + "/sn_orchestrater.py " + file_path + '/' +
+    #     str(timeptr) + '.txt ' + str(constellation_size) + " " +
+    #     str(sat_loss) + " update")
+    print(''.join(
+        sn_remote_cmd(
+            remote_ssh,
+            "python3 " + file_path + "/sn_orchestrater.py " + file_path + '/' +
+            str(timeptr) + '.txt ' + str(constellation_size) + " " +
+            str(sat_loss) + " update")))
+    print("Link updating done.\n")
 
 
 def sn_damage(ratio, damage_list, constellation_size, remote_ssh, remote_ftp,
