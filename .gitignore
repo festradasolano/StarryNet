@@ -51,6 +51,9 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+# Emulation runs
+runs/
+
 .DS_Store
 .idea
 __pycache__
