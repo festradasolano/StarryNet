@@ -33,6 +33,11 @@ class Observer():
         self.intra_routing = intra_routing
         self.hello_interval = hello_interval
         self.AS = AS
+        self.inter_isl_lat_threshold = 70
+        # folded_inclination = 90 - abs(self.inclination - 90)
+        # self.inter_isl_lat_threshold = folded_inclination * 90 / 100
+        # if self.inter_isl_lat_threshold > 70:
+        #     self.inter_isl_lat_threshold = 70
 
     def access_P_L_shortest(self, sat_cbf, fac_cbf, fac_num, sat_num,
                             num_orbits, num_sats_per_orbit, duration, fac_ll,
@@ -96,10 +101,16 @@ class Observer():
                         np.square(x1 - x2) + np.square(y1 - y2) +
                         np.square(z1 - z2)) / (17.31 / 29.5 *
                                                299792.458) * 1000  # ms
-                    delay2 = math.sqrt(
-                        np.square(x1 - x3) + np.square(y1 - y3) +
-                        np.square(z1 - z3)) / (17.31 / 29.5 *
-                                               299792.458) * 1000  # ms
+                    # Validate inter-orbit ISL disconnection
+                    lat1 = abs(sat_lla[cur_time][num_sat1][0])
+                    lat3 = abs(sat_lla[cur_time][num_sat3][0])
+                    if lat1 > self.inter_isl_lat_threshold or lat3 > self.inter_isl_lat_threshold:
+                        delay2 = -1
+                    else:
+                        delay2 = math.sqrt(
+                            np.square(x1 - x3) + np.square(y1 - y3) +
+                            np.square(z1 - z3)) / (17.31 / 29.5 *
+                                                299792.458) * 1000  # ms
                     delay_matrix[num_sat1][num_sat2] = delay1
                     delay_matrix[num_sat2][num_sat1] = delay1
                     delay_matrix[num_sat1][num_sat3] = delay2

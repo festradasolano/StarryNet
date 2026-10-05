@@ -47,11 +47,17 @@ class StarryNet():
         self.AS = AS
         self.configuration_file_path = os.path.dirname(
             os.path.abspath(configuration_file_path))
-        self.file_path = './' + sn_args.cons_name + '-' + str(
+        time_str = datetime.now().strftime("%Y%m%d_%H%M")
+        self.file_path = './' + time_str + '-' + sn_args.cons_name + '-' + str(
             sn_args.orbit_number) + '-' + str(sn_args.sat_number) + '-' + str(
                 sn_args.satellite_altitude) + '-' + str(
                     sn_args.inclination
                 ) + '-' + sn_args.link_style + '-' + sn_args.link_policy
+        self.configuration_file_path = os.path.join(
+            self.configuration_file_path, "runs")
+        if not os.path.exists(self.configuration_file_path):
+            os.makedirs(self.configuration_file_path)
+
         self.observer = Observer(self.file_path, self.configuration_file_path,
                                  self.inclination, self.satellite_altitude,
                                  self.orbit_number, self.sat_number,
