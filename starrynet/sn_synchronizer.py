@@ -20,6 +20,7 @@ class StarryNet():
         self.name = sn_args.cons_name
         self.satellite_altitude = sn_args.satellite_altitude
         self.inclination = sn_args.inclination
+        self.phase_shift = sn_args.phase_shift
         self.orbit_number = sn_args.orbit_number
         self.sat_number = sn_args.sat_number
         self.fac_num = sn_args.fac_num
@@ -42,6 +43,7 @@ class StarryNet():
         self.multi_machine = sn_args.multi_machine
         self.antenna_number = sn_args.antenna_number
         self.antenna_inclination = sn_args.antenna_inclination
+        self.inter_isl_boundary = sn_args.inter_isl_boundary
         self.container_global_idx = 1
         self.hello_interval = hello_interval
         self.AS = AS
@@ -64,7 +66,8 @@ class StarryNet():
                                  self.duration, self.antenna_number,
                                  GS_lat_long, self.antenna_inclination,
                                  self.intra_routing, self.hello_interval,
-                                 self.AS)
+                                 self.AS, phase_shift=self.phase_shift,
+                                 inter_isl_boundary=self.inter_isl_boundary)
         self.docker_service_name = 'constellation-test'
         self.isl_idx = 0
         self.ISL_hub = 'ISL_hub'
@@ -225,8 +228,8 @@ class StarryNet():
     def start_emulation(self):
         # Start emulation in a new thread.
         sn_thread = sn_Emulation_Start_Thread(
-            self.remote_ssh, self.remote_ftp, self.sat_loss,
-            self.sat_ground_bandwidth, self.sat_ground_loss,
+            self.remote_ssh, self.remote_ftp, self.sat_bandwidth,
+            self.sat_loss, self.sat_ground_bandwidth, self.sat_ground_loss,
             self.container_id_list, self.file_path,
             self.configuration_file_path, self.update_interval,
             self.constellation_size, self.ping_src, self.ping_des,

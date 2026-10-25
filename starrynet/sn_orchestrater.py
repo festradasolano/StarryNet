@@ -159,8 +159,6 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
     # Validate inter-orbit ISL disconnection
     inter_isl_delay = delay
     inter_isl_loss = loss
-    # print("delay: ", delay, type(delay))
-    # print("loss: ", loss, type(loss))
     if float(delay) < 0:
         inter_isl_delay = 0
         inter_isl_loss = 100
@@ -552,8 +550,9 @@ def sn_delay_change(link_x, link_y, delay, container_id_list,
                   str(link_x + 1) + " root netem delay " + str(delay) + "ms")
 
 
-def sn_update_link(matrix, container_id_list,
-                   constellation_size, sat_loss):  # updating links
+# Updating link delays, losses, and rates
+def sn_update_link(matrix, container_id_list, constellation_size,
+                   sat_bw, sat_loss, sat_ground_bw, sat_ground_loss):
     update_threads = []
     for row in range(len(matrix)):
         for col in range(row, len(matrix[row])):
@@ -562,13 +561,15 @@ def sn_update_link(matrix, container_id_list,
                     update_thread = threading.Thread(
                         target=sn_link_change,
                         args=(row, col, matrix[row][col], container_id_list,
-                              constellation_size, sat_loss))
+                              constellation_size, sat_bw, sat_loss,
+                              sat_ground_bw, sat_ground_loss))
                     update_threads.append(update_thread)
                 else:
                     update_thread = threading.Thread(
                         target=sn_link_change,
                         args=(col, row, matrix[col][row], container_id_list,
-                              constellation_size, sat_loss))
+                              constellation_size, sat_bw, sat_loss,
+                              sat_ground_bw, sat_ground_loss))
                     update_threads.append(update_thread)
     for update_thread in update_threads:
         update_thread.start()
@@ -578,31 +579,38 @@ def sn_update_link(matrix, container_id_list,
 
 
 def sn_link_change(link_x, link_y, delay, container_id_list,
-                    constellation_size, sat_loss):  # multi-thread updating delays
+                   constellation_size, sat_bw, sat_loss, sat_ground_bw,
+                   sat_ground_loss):  # multi-thread link updating
     if link_y < constellation_size:
-        if delay <= 0:
+        if float(delay) <= 0:
             os.system("docker exec -d " + str(container_id_list[link_x]) +
                     " tc qdisc change dev B" + str(link_x + 1) + "-eth" +
-                    str(link_y + 1) + " root netem delay 0ms loss 100%")
+                    str(link_y + 1) + " root netem loss 100%")
             os.system("docker exec -d " + str(container_id_list[link_y]) +
                     " tc qdisc change dev B" + str(link_y + 1) + "-eth" +
-                    str(link_x + 1) + " root netem delay 0ms loss 100%")
+                    str(link_x + 1) + " root netem loss 100%")
         else:
             os.system("docker exec -d " + str(container_id_list[link_x]) +
                     " tc qdisc change dev B" + str(link_x + 1) + "-eth" +
                     str(link_y + 1) + " root netem delay " + str(delay) +
-                    "ms loss " + str(sat_loss) + "%")
+                    "ms loss " + str(sat_loss) + "% rate " + str(sat_bw) +
+                    "Gbit")
             os.system("docker exec -d " + str(container_id_list[link_y]) +
                     " tc qdisc change dev B" + str(link_y + 1) + "-eth" +
                     str(link_x + 1) + " root netem delay " + str(delay) +
-                    "ms loss " + str(sat_loss) + "%")
+                    "ms loss " + str(sat_loss) + "% rate " + str(sat_bw) +
+                    "Gbit")
     else:
         os.system("docker exec -d " + str(container_id_list[link_x]) +
                   " tc qdisc change dev B" + str(link_x + 1) + "-eth" +
-                  str(link_y + 1) + " root netem delay " + str(delay) + "ms")
+                  str(link_y + 1) + " root netem delay " + str(delay) +
+                  "ms loss " + str(sat_ground_loss) + "% rate " +
+                  str(sat_ground_bw) + "Gbit")
         os.system("docker exec -d " + str(container_id_list[link_y]) +
                   " tc qdisc change dev B" + str(link_y + 1) + "-eth" +
-                  str(link_x + 1) + " root netem delay " + str(delay) + "ms")
+                  str(link_x + 1) + " root netem delay " + str(delay) +
+                  "ms loss " + str(sat_ground_loss) + "% rate " +
+                  str(sat_ground_bw) + "Gbit")
 
 
 if __name__ == '__main__':
@@ -622,15 +630,17 @@ if __name__ == '__main__':
                           constellation_size, sat_bandwidth, sat_loss)
         sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size,
                          sat_ground_bandwidth, sat_ground_loss)
-    elif len(sys.argv) == 5:
-        if sys.argv[4] == "update":
-            current_delay_path = sys.argv[1]
-            constellation_size = int(sys.argv[2])
-            sat_loss = float(sys.argv[3])
-            matrix = sn_get_param(current_delay_path)
-            container_id_list = sn_get_container_info()
-            sn_update_link(matrix, container_id_list, constellation_size,
-                           sat_loss)
+    elif len(sys.argv) == 7:
+        current_delay_path = sys.argv[1]
+        constellation_size = int(sys.argv[2])
+        sat_bw = float(sys.argv[3])
+        sat_loss = float(sys.argv[4])
+        sat_ground_bw = float(sys.argv[5])
+        sat_ground_loss = float(sys.argv[6])
+        matrix = sn_get_param(current_delay_path)
+        container_id_list = sn_get_container_info()
+        sn_update_link(matrix, container_id_list, constellation_size,
+                       sat_bw, sat_loss, sat_ground_bw, sat_ground_loss)
     elif len(sys.argv) == 4:
         if sys.argv[3] == "update":
             current_delay_path = sys.argv[1]

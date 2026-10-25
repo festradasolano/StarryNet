@@ -10,6 +10,12 @@ from starrynet.sn_utils import *
 
 _ = inf = 999999  # inf
 
+# Default phase shift (degrees)
+DEFAULT_PHASE_SHIFT = 18
+
+# Default inter-orbit ISL latitude boundary (degrees)
+DEFAULT_INTER_ISL_BOUNDARY = 90.0  # always connected
+
 # To calculate the connection between satellites and GSes in time_in
 # fac_num: number of GSes
 
@@ -19,7 +25,9 @@ class Observer():
     def __init__(self, file_path, configuration_file_path, inclination,
                  satellite_altitude, orbit_number, sat_number, duration,
                  antenna_number, GS_lat_long, antenna_inclination,
-                 intra_routing, hello_interval, AS):
+                 intra_routing, hello_interval, AS,
+                 phase_shift=DEFAULT_PHASE_SHIFT,
+                 inter_isl_boundary=DEFAULT_INTER_ISL_BOUNDARY):
         self.file_path = file_path
         self.configuration_file_path = configuration_file_path
         self.inclination = inclination
@@ -33,11 +41,14 @@ class Observer():
         self.intra_routing = intra_routing
         self.hello_interval = hello_interval
         self.AS = AS
-        self.inter_isl_lat_threshold = 70
-        # folded_inclination = 90 - abs(self.inclination - 90)
-        # self.inter_isl_lat_threshold = folded_inclination * 90 / 100
-        # if self.inter_isl_lat_threshold > 70:
-        #     self.inter_isl_lat_threshold = 70
+        # Phase shift
+        self.phase_shift = phase_shift
+        if self.phase_shift < 0:
+            self.phase_shift = DEFAULT_PHASE_SHIFT
+        # Inter-orbit ISL latitude boundary
+        self.inter_isl_boundary = inter_isl_boundary
+        if self.inter_isl_boundary < 0:
+            self.inter_isl_boundary = DEFAULT_INTER_ISL_BOUNDARY
 
     def access_P_L_shortest(self, sat_cbf, fac_cbf, fac_num, sat_num,
                             num_orbits, num_sats_per_orbit, duration, fac_ll,
@@ -104,7 +115,7 @@ class Observer():
                     # Validate inter-orbit ISL disconnection
                     lat1 = abs(sat_lla[cur_time][num_sat1][0])
                     lat3 = abs(sat_lla[cur_time][num_sat3][0])
-                    if lat1 > self.inter_isl_lat_threshold or lat3 > self.inter_isl_lat_threshold:
+                    if lat1 > self.inter_isl_boundary or lat3 > self.inter_isl_boundary:
                         delay2 = -1
                     else:
                         delay2 = math.sqrt(
@@ -168,7 +179,7 @@ class Observer():
             adjacency_matrix = sn_get_param(topo_path)
             for i in range(len(adjacency_matrix)):
                 for j in range(len(adjacency_matrix[i])):
-                    if float(adjacency_matrix[i][j]) > 0:
+                    if float(adjacency_matrix[i][j]) != 0:
                         adjacency_matrix[i][j] = 1
                     else:
                         adjacency_matrix[i][j] = 0
@@ -256,7 +267,7 @@ class Observer():
         num_of_orbit = self.orbit_number
         sat_per_orbit = self.sat_number
         num_of_sat = num_of_orbit * sat_per_orbit
-        F = 18
+        F = self.phase_shift
         bound_dis = self.calculate_bound(
             self.antenna_inclination, self.satellite_altitude) * 29.5 / 17.31
 

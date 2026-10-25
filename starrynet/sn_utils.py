@@ -76,6 +76,7 @@ def sn_load_file(path, GS_lat_long):
     data['remote_machine_IP'] = table["remote_machine_IP"]
     data['remote_machine_username'] = table["remote_machine_username"]
     data['remote_machine_password'] = table["remote_machine_password"]
+    data['inter_isl_boundary'] = table["Inter-orbit ISL boundary"]
 
     parser = argparse.ArgumentParser(description='manual to this script')
     parser.add_argument('--cons_name', type=str, default=data['cons_name'])
@@ -83,6 +84,7 @@ def sn_load_file(path, GS_lat_long):
                         type=int,
                         default=data['altitude'])
     parser.add_argument('--inclination', type=int, default=data['inclination'])
+    parser.add_argument('--phase_shift', type=int, default=data['phase_shift'])
     parser.add_argument('--orbit_number', type=int, default=data['orbit'])
     parser.add_argument('--sat_number', type=int, default=data['sat'])
     parser.add_argument('--fac_num', type=int, default=len(GS_lat_long))
@@ -130,6 +132,9 @@ def sn_load_file(path, GS_lat_long):
     parser.add_argument('--remote_machine_password',
                         type=str,
                         default=data['remote_machine_password'])
+    parser.add_argument('--inter_isl_boundary',
+                        type=int,
+                        default=data['inter_isl_boundary'])
 
     parser.add_argument('--path',
                         '-p',
@@ -307,22 +312,23 @@ class sn_Link_Init_Thread(threading.Thread):
             self.configuration_file_path + "/" + self.file_path +
             '/delay/1.txt', self.file_path + "/1.txt")
         print('Initializing links ...')
-        # sn_remote_cmd(
-        #     self.remote_ssh, "python3 " + self.file_path +
-        #     "/sn_orchestrater.py" + " " + str(self.orbit_num) + " " +
-        #     str(self.sat_num) + " " + str(self.constellation_size) + " " +
-        #     str(self.fac_num) + " " + str(self.sat_bandwidth) + " " +
-        #     str(self.sat_loss) + " " + str(self.sat_ground_bandwidth) + " " +
-        #     str(self.sat_ground_loss) + " " + self.file_path + "/1.txt")
-        print(''.join(
-            sn_remote_cmd(
-                self.remote_ssh, "python3 " + self.file_path +
-                "/sn_orchestrater.py" + " " + str(self.orbit_num) + " " +
-                str(self.sat_num) + " " + str(self.constellation_size) + " " +
-                str(self.fac_num) + " " + str(self.sat_bandwidth) + " " +
-                str(self.sat_loss) + " " + str(self.sat_ground_bandwidth) +
-                " " + str(self.sat_ground_loss) + " " + self.file_path +
-                "/1.txt")))
+        sn_remote_cmd(
+            self.remote_ssh, "python3 " + self.file_path +
+            "/sn_orchestrater.py" + " " + str(self.orbit_num) + " " +
+            str(self.sat_num) + " " + str(self.constellation_size) + " " +
+            str(self.fac_num) + " " + str(self.sat_bandwidth) + " " +
+            str(self.sat_loss) + " " + str(self.sat_ground_bandwidth) + " " +
+            str(self.sat_ground_loss) + " " + self.file_path + "/1.txt")
+        # Uncomment to print the output of the command
+        # print(''.join(
+        #     sn_remote_cmd(
+        #         self.remote_ssh, "python3 " + self.file_path +
+        #         "/sn_orchestrater.py" + " " + str(self.orbit_num) + " " +
+        #         str(self.sat_num) + " " + str(self.constellation_size) + " " +
+        #         str(self.fac_num) + " " + str(self.sat_bandwidth) + " " +
+        #         str(self.sat_loss) + " " + str(self.sat_ground_bandwidth) +
+        #         " " + str(self.sat_ground_loss) + " " + self.file_path +
+        #         "/1.txt")))
 
 
 # A thread designed for initializing bird routing.
@@ -362,7 +368,7 @@ class sn_Routing_Init_Thread(threading.Thread):
 # A thread designed for emulation.
 class sn_Emulation_Start_Thread(threading.Thread):
 
-    def __init__(self, remote_ssh, remote_ftp, sat_loss, sat_ground_bw,
+    def __init__(self, remote_ssh, remote_ftp, sat_bw, sat_loss, sat_ground_bw,
                  sat_ground_loss, container_id_list, file_path,
                  configuration_file_path, update_interval, constellation_size,
                  ping_src, ping_des, ping_time, sr_src, sr_des, sr_target,
@@ -372,6 +378,7 @@ class sn_Emulation_Start_Thread(threading.Thread):
         threading.Thread.__init__(self)
         self.remote_ssh = remote_ssh
         self.remote_ftp = remote_ftp
+        self.sat_bw = sat_bw
         self.sat_loss = sat_loss
         self.sat_ground_bw = sat_ground_bw
         self.sat_ground_loss = sat_ground_loss
@@ -422,11 +429,13 @@ class sn_Emulation_Start_Thread(threading.Thread):
                             self.configuration_file_path + "/" +
                             self.file_path)
                     if timeptr % self.update_interval == 0:
-                        # updating link delays after link changes
-                        sn_update_delay(self.file_path,
-                                        self.configuration_file_path, timeptr,
-                                        self.constellation_size,
-                                        self.remote_ssh, self.remote_ftp)
+                        # updating link delays and losses after link changes
+                        sn_update_link(self.file_path, 
+                                       self.configuration_file_path, timeptr,
+                                       self.constellation_size,
+                                       self.remote_ssh, self.remote_ftp,
+                                       self.sat_bw, self.sat_loss,
+                                       self.sat_ground_bw, self.sat_ground_loss)
                     if timeptr in self.damage_time:
                         sn_damage(
                             self.damage_ratio[self.damage_time.index(timeptr)],
@@ -554,11 +563,13 @@ class sn_Emulation_Start_Thread(threading.Thread):
                         timeptr, self.remote_ssh,
                         self.configuration_file_path + "/" + self.file_path)
                 if timeptr % self.update_interval == 0:
-                    # updating link delays after link changes
-                    sn_update_delay(self.file_path,
-                                    self.configuration_file_path, timeptr,
-                                    self.constellation_size, self.remote_ssh,
-                                    self.remote_ftp)
+                    # updating link delays and losses after link changes
+                    sn_update_link(self.file_path, 
+                                       self.configuration_file_path, timeptr,
+                                       self.constellation_size,
+                                       self.remote_ssh, self.remote_ftp,
+                                       self.sat_bw, self.sat_loss,
+                                       self.sat_ground_bw, self.sat_ground_loss)
                 if timeptr in self.damage_time:
                     sn_damage(
                         self.damage_ratio[self.damage_time.index(timeptr)],
@@ -641,6 +652,7 @@ def sn_check_utility(time_index, remote_ssh, file_path):
     f.close()
 
 
+# Deprecated, use sn_update_link instead
 def sn_update_delay(file_path, configuration_file_path, timeptr,
                     constellation_size, remote_ssh,
                     remote_ftp):  # updating delays
@@ -656,9 +668,10 @@ def sn_update_delay(file_path, configuration_file_path, timeptr,
     print("Delay updating done.\n")
 
 
+# Updating link delays, losses, and rates
 def sn_update_link(file_path, configuration_file_path, timeptr,
-                   constellation_size, remote_ssh,
-                   remote_ftp, sat_loss):  # updating links
+                   constellation_size, remote_ssh, remote_ftp, sat_bw,
+                   sat_loss, sat_ground_bw, sat_ground_loss):
     remote_ftp.put(os.path.join(os.getcwd(), "starrynet/sn_orchestrater.py"),
                    file_path + "/sn_orchestrater.py")
     remote_ftp.put(
@@ -668,13 +681,16 @@ def sn_update_link(file_path, configuration_file_path, timeptr,
     #     remote_ssh,
     #     "python3 " + file_path + "/sn_orchestrater.py " + file_path + '/' +
     #     str(timeptr) + '.txt ' + str(constellation_size) + " " +
-    #     str(sat_loss) + " update")
+    #     str(sat_bw) + " " + str(sat_loss) + " " +
+    #     str(sat_ground_bw) + " " + str(sat_ground_loss))
+    # Uncomment to print the output of the command
     print(''.join(
         sn_remote_cmd(
             remote_ssh,
             "python3 " + file_path + "/sn_orchestrater.py " + file_path + '/' +
             str(timeptr) + '.txt ' + str(constellation_size) + " " +
-            str(sat_loss) + " update")))
+            str(sat_bw) + " " + str(sat_loss) + " " +
+            str(sat_ground_bw) + " " + str(sat_ground_loss))))
     print("Link updating done.\n")
 
 
@@ -758,9 +774,14 @@ def sn_ping(src, des, time_index, constellation_size, container_id_list,
             remote_ssh, "docker exec -it " + str(container_id_list[des - 1]) +
             " ifconfig B" + str(des) +
             "-default |awk -F '[ :]+' 'NR==2{print $4}'")
+    if len(des_IP) == 0:
+        print(f"Failed to obtain destination IP of node {des}; skipping " +
+              f"ping from node {src} to node {des} at time {time_index}")
+        return
+    target = str(des_IP[0]).strip()
     ping_result = sn_remote_cmd(
         remote_ssh, "docker exec -i " + str(container_id_list[src - 1]) +
-        " ping " + str(des_IP[0][:-1]) + " -c 4 -i 0.01 ")
+        " ping " + target + " -c 4 -i 0.01 ")
     f = open(
         configuration_file_path + "/" + file_path + "/ping-" + str(src) + "-" +
         str(des) + "_" + str(time_index) + ".txt", "w")
@@ -784,13 +805,18 @@ def sn_perf(src, des, time_index, constellation_size, container_id_list,
             " ifconfig B" + str(des) +
             "-default |awk -F '[ :]+' 'NR==2{print $4}'")
 
+    if len(des_IP) == 0:
+        print(f"Failed to obtain destination IP of node {des}; skipping " +
+              f"perf from node {src} to node {des} at time {time_index}")
+        return
+    target = str(des_IP[0]).strip()
     sn_remote_cmd(
         remote_ssh,
         "docker exec -id " + str(container_id_list[des - 1]) + " iperf3 -s ")
     print("iperf server success")
     perf_result = sn_remote_cmd(
         remote_ssh, "docker exec -i " + str(container_id_list[src - 1]) +
-        " iperf3 -c " + str(des_IP[0][:-1]) + " -t 5 ")
+        " iperf3 -c " + target + " -t 5 ")
     print("iperf client success")
     f = open(
         configuration_file_path + "/" + file_path + "/perf-" + str(src) + "-" +
