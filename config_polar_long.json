@@ -1,5 +1,5 @@
 {
-    "Name": "starlink_polar_long",
+    "Name": "starlink_polar_480s",
     "Altitude (km)": 560,
     "Cycle (s)": 5743,
     "Inclination": 97.6,
@@ -24,5 +24,6 @@
     "Inter-AS routing": "BGP",
     "Link policy": "LeastDelay",
     "Handover policy": "instant handover",
-    "multi-machine (\"0\" for no, \"1\" for yes)": 0
+    "multi-machine (\"0\" for no, \"1\" for yes)": 0,
+    "Inter-orbit ISL boundary": 70
 }

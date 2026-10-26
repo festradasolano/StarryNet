@@ -16,8 +16,8 @@ if __name__ == "__main__":
 
     AS = [[1, 18]]  # Node #1 to Node #18 are within the same AS.
     GS_lat_long = [
-        [50.110924, 8.682127], [46.635700, 14.311817]
-    ]  # latitude and longitude of frankfurt and  Austria
+        [70.322521, -149.871954], [78.229742, 15.407738]
+    ]  # latitude and longitude of Kuparuk (USA) and Svalbard (Norway)
     configuration_file_path = "./config_polar.json"
     hello_interval = 1  # hello_interval(s) in OSPF. 1-200 are supported.
 
